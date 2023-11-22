@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <title>更改密码</title>
+    <meta charset="UTF-8">
+    <style>
+        label {
+            display: inline-block;
+            width: 120px;
+        }
+    </style>
+</head>
+<body>
+<h1>更改密码</h1>
+<form method="post" action="updatepwd.php">
+    <div>
+        <label for="cur_pass">当前密码:</label>
+        <input type="password" id="cur_pass" name="cur_pass" required>
+    </div>
+    <div>
+        <label for="pass">新密码:</label>
+        <input type="password" id="pass" name="pass" required>
+    </div>
+    <div>
+        <input type="submit" id="Submit" name="Submit" value="更改密码">
+    </div>
+</form>
+</body>
+</html>
