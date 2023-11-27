@@ -1,48 +1,90 @@
 <?php
 include('dbcon.php');
-$con=$GLOBALS['con'];
+$con = $GLOBALS['con'];
 session_start();
-$checkData = $_POST['leaveDate']>date('Y-m-d')
-&& (date('N', strtotime($_POST['leaveDate'])) == 3);
 
-$isLoggedIn = false;
-if (isset($_SESSION['user_id'])) $isLoggedIn = true;
+class LeaveApplication
+{
+    private $con;
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    if($checkData) {
-        $leaveDate = $_POST['leaveDate'];
+    public function __construct($con)
+    {
+        $this->con = $con;
     }
-    else {
-        $response = [
-            'status' => 'date error',
-            'message' => 'go back'
-        ];
+
+    public function processApplication()
+    {
+        $isLoggedIn = isset($_SESSION['user_id']);
+
+        if ($isLoggedIn) {
+            header('Location: application.html');
+        } else {
+            header('Location: index.html');
+        }
+
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            if ($this->isValidDate($_POST['leaveDate'])) {
+                $leaveDate = $_POST['leaveDate'];
+            } else {
+                $response = [
+                    'status' => 'date error',
+                    'message' => 'go back'
+                ];
+                $this->sendResponse($response);
+            }
+
+            $reason = isset($_POST['reason']) ? addslashes($_POST['reason']) : '';
+            $user_id = isset($_SESSION['user_id']) ? addslashes($_SESSION['user_id']) : '';
+
+            if ($this->isApplicationExist($user_id, $leaveDate)) {
+                $this->updateApplication($user_id, $leaveDate, $reason);
+                $response = [
+                    'status' => 'success',
+                    'message' => 'Data updated successfully'
+                ];
+            } else {
+                $this->insertApplication($user_id, $leaveDate, $reason);
+                $response = [
+                    'status' => 'success',
+                    'message' => 'Data inserted successfully'
+                ];
+            }
+
+            $this->sendResponse($response);
+        }
     }
-    $reason = isset($_POST['reason'])?addslashes($_POST['reason']):'';;
-    $user_id = isset($_SESSION['user_id'])?addslashes($_SESSION['user_id']):'';
-    $sql1 = "INSERT INTO application (time, reason,user_id) VALUES ('$leaveDate','$reason','$user_id')";
-    $sql2 = "UPDATE application SET time='$leaveDate', reason='$reason' WHERE user_id='$user_id' and time='$leaveDate'";
-    $sql3 = "SELECT * from application WHERE user_id='$user_id' and time='$leaveDate'";
-    $query=mysqli_query($con,$sql3) or die('SQL语句执行失败'.mysqli_error($con));
-    if (mysqli_fetch_array($query) && mysqli_query($con, $sql2)) {
-        $response = [
-            'status' => 'success',
-            'message' => 'Data updated successfully'
-        ];
-    } else if (!mysqli_fetch_array($query) && mysqli_query($con, $sql1)) {
-        $response = [
-            'status' => 'success',
-            'message' => 'Data inserted successfully'
-        ];
-    } else {
-        $response = [
-            'status' => 'error',
-            'message' => 'Error inserting data: ' . mysqli_error($con)
-        ];
+
+    private function isValidDate($date)
+    {
+        return ($date > date('Y-m-d')) && (date('N', strtotime($date)) == 3);
     }
-    echo json_encode($response);
-    exit;
+
+    private function isApplicationExist($user_id, $leaveDate)
+    {
+        $sql = "SELECT * from application WHERE user_id='$user_id' and time='$leaveDate'";
+        $query = mysqli_query($this->con, $sql) or die('SQL语句执行失败' . mysqli_error($this->con));
+        return mysqli_fetch_array($query);
+    }
+
+    private function insertApplication($user_id, $leaveDate, $reason)
+    {
+        $sql = "INSERT INTO application (time, reason, user_id) VALUES ('$leaveDate','$reason','$user_id')";
+        mysqli_query($this->con, $sql);
+    }
+
+    private function updateApplication($user_id, $leaveDate, $reason)
+    {
+        $sql = "UPDATE application SET reason='$reason' WHERE user_id='$user_id' and time='$leaveDate'";
+        mysqli_query($this->con, $sql);
+    }
+
+    private function sendResponse($response)
+    {
+        echo json_encode($response);
+        exit;
+    }
 }
-if ($isLoggedIn) header('Location:application.html');
-else header('Location:index.html');
+
+$leaveApp = new LeaveApplication($con);
+$leaveApp->processApplication();
 ?>
